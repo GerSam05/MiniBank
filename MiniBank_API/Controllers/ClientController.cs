@@ -1,8 +1,8 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using MiniBank_API.Context;
 using MiniBank_API.Models;
+using MiniBank_API.Service;
 
 namespace MiniBank_API.Controllers
 {
@@ -10,23 +10,23 @@ namespace MiniBank_API.Controllers
     [ApiController]
     public class ClientController : ControllerBase
     {
-        private readonly MiniBankContext _context;
+        private readonly ClientService _service;
 
-        public ClientController(MiniBankContext context)
+        public ClientController(ClientService service)
         {
-            _context = context;
+            _service = service;
         }
 
         [HttpGet]
         public IEnumerable<Client> Get()
         {
-            return _context.Clients.ToList();
+            return _service.GetAll();
         }
 
         [HttpGet("{id}")]
         public ActionResult<Client> GetById(int id)
         {
-            var client = _context.Clients.FirstOrDefault(i => i.Id == id);
+            var client = _service.GetById(id);
             if (client == null)
             {
                 return NotFound();
@@ -37,10 +37,9 @@ namespace MiniBank_API.Controllers
         [HttpPost]
         public IActionResult Post(Client client)
         {
-            _context.Clients.Add(client);
-            _context.SaveChanges();
+            var newClient = _service.Create(client);
 
-            return CreatedAtAction(nameof(GetById), new { id = client.Id }, client );
+            return CreatedAtAction(nameof(GetById), new { id = newClient.Id }, newClient );
         }
 
         [HttpPut("{id}")]
@@ -51,28 +50,25 @@ namespace MiniBank_API.Controllers
                 return BadRequest();
             }
 
-            var existingClient = _context.Clients.FirstOrDefault(i=>i.Id== id);
+            var existingClient = _service.GetById(id);
             if (existingClient == null)
             {
                 return NotFound();
             }
-            existingClient.PhoneNumber = client.PhoneNumber  ;
-            existingClient.Email = client.Email;
-            existingClient.Name = client.Name;
-            _context.SaveChanges();
+            _service.Update(client);
             return NoContent();
         }
 
         [HttpDelete("{id}")]
         public IActionResult Delete(int id)
         {
-            var clientToDelete = _context.Clients.FirstOrDefault(i => i.Id == id);
+            var clientToDelete = _service.GetById(id);
             if (clientToDelete == null)
             {
                 return NotFound();
             }
-            _context.Clients.Remove(clientToDelete);
-            _context.SaveChanges();
+            _service.Delete(id);
+
             return Ok();
         }
     }

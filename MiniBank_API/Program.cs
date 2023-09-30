@@ -1,4 +1,5 @@
 using MiniBank_API.Context;
+using MiniBank_API.Service;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,6 +12,9 @@ builder.Services.AddSwaggerGen();
 
 //Context
 builder.Services.AddSqlServer<MiniBankContext>(builder.Configuration.GetConnectionString("Coneccion"));
+
+//Service
+builder.Services.AddScoped<ClientService>();
 
 var app = builder.Build();
 
