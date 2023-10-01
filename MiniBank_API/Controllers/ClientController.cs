@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MiniBank_API.Models;
 using MiniBank_API.Service;
+using System.Net;
 
 namespace MiniBank_API.Controllers
 {
@@ -17,59 +19,96 @@ namespace MiniBank_API.Controllers
             _service = service;
         }
 
+        [ProducesResponseType(StatusCodes.Status200OK)]
         [HttpGet]
-        public IEnumerable<Client> Get()
+        public async Task<IEnumerable<Client>> GetClients()
         {
-            return _service.GetAll();
+            return await _service.GetAll();
         }
 
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         [HttpGet("{id}")]
-        public ActionResult<Client> GetById(int id)
+        public async Task<ActionResult<Client>> GetClient(int id)
         {
-            var client = _service.GetById(id);
+            var client = await _service.GetById(id);
             if (client == null)
             {
                 return NotFound();
             }
-            return client;
+            return Ok(client);
         }
 
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         [HttpPost]
-        public IActionResult Post(Client client)
+        public async Task<IActionResult> PostClient(Client client)
         {
-            var newClient = _service.Create(client);
+            var newClient = await _service.Create(client);
 
-            return CreatedAtAction(nameof(GetById), new { id = newClient.Id }, newClient );
+            return CreatedAtAction(nameof(GetClient), new { id = newClient.Id }, newClient );
         }
 
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         [HttpPut("{id}")]
-        public IActionResult Put(int id, [FromBody] Client client)
+        public async Task<IActionResult> UpdateClient(int id, [FromBody] Client client)
         {
             if (id != client.Id)
             {
                 return BadRequest();
             }
 
-            var existingClient = _service.GetById(id);
+            var existingClient = await _service.GetById(id);
             if (existingClient == null)
             {
                 return NotFound();
             }
-            _service.Update(client);
+            await _service.Update(client);
             return NoContent();
         }
 
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
+        public async Task<IActionResult> DeleteClient(int id)
         {
-            var clientToDelete = _service.GetById(id);
+            var clientToDelete = await _service.GetById(id);
             if (clientToDelete == null)
             {
                 return NotFound();
             }
-            _service.Delete(id);
+            await _service.Delete(id);
 
             return Ok();
+        }
+
+        [HttpPatch("{id}")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> PartialPutClient(int id, JsonPatchDocument<Client> jsonPatch)
+        {
+            var client = await _service.GetById(id);
+            if (client == null)
+            {
+                return NotFound();
+            }
+            if (jsonPatch == null || jsonPatch.Operations.Count == 0 || jsonPatch.Operations.Any(o => o.op != "replace"))
+            {
+                return BadRequest();
+            }
+
+            jsonPatch.ApplyTo(client);
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            await _service.Update(client);
+
+            return NoContent();
         }
     }
 }

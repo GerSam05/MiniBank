@@ -1,5 +1,6 @@
 ﻿using MiniBank_API.Context;
 using MiniBank_API.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace MiniBank_API.Service
 {
@@ -12,42 +13,42 @@ namespace MiniBank_API.Service
             _context = context;
         }
 
-        public IEnumerable<Client> GetAll()
+        public async Task<IEnumerable<Client>> GetAll()
         {
-            return _context.Clients.ToList();
+            return await _context.Clients.ToListAsync();
         }
 
-        public Client? GetById(int id)
+        public async Task<Client?> GetById(int id)
         {
-            return _context.Clients.FirstOrDefault(c => c.Id == id);
+            return await _context.Clients.FirstOrDefaultAsync(c => c.Id == id);
         }
 
-        public Client Create(Client newClient)
+        public async Task<Client> Create(Client newClient)
         {
-            _context.Clients.Add(newClient);
-            _context.SaveChanges();
+            await _context.Clients.AddAsync(newClient);
+            await _context.SaveChangesAsync();
             return newClient;
         }
 
-        public void Update(Client client)
+        public async Task Update(Client client)
         {
-            var existingClient = GetById(client.Id);
+            var existingClient = await GetById(client.Id);
             if (existingClient != null)
             {
                 existingClient.Name= client.Name;
                 existingClient.PhoneNumber= client.PhoneNumber;
                 existingClient.Email= client.Email;
-                _context.SaveChanges();
+                await _context.SaveChangesAsync();
             }
         }
 
-        public void Delete(int id)
+        public async Task Delete(int id)
         {
-            var clientToDelete = GetById(id);
+            var clientToDelete = await GetById(id);
             if (clientToDelete != null)
             {
                 _context.Clients.Remove(clientToDelete);
-                _context.SaveChanges();
+                await _context.SaveChangesAsync();
             }
         }
 
