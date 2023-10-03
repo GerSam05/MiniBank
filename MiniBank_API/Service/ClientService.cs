@@ -17,12 +17,12 @@ namespace MiniBank_API.Service
         {
             return await _context.Clients.ToListAsync();
         }
-
+        
         public async Task<Client?> GetById(int id)
         {
             return await _context.Clients.FirstOrDefaultAsync(c => c.Id == id);
         }
-
+        
         public async Task<Client> Create(Client newClient)
         {
             await _context.Clients.AddAsync(newClient);
@@ -51,7 +51,5 @@ namespace MiniBank_API.Service
                 await _context.SaveChangesAsync();
             }
         }
-
-
     }
 }

@@ -1,4 +1,5 @@
 using MiniBank_API.Context;
+using MiniBank_API.Models;
 using MiniBank_API.Service;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +16,7 @@ builder.Services.AddSqlServer<MiniBankContext>(builder.Configuration.GetConnecti
 
 //Service
 builder.Services.AddScoped<ClientService>();
+builder.Services.AddScoped<AccountService>();
 
 var app = builder.Build();
 
