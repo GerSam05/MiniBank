@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using MiniBank_API;
 using MiniBank_API.Context;
 using MiniBank_API.Models;
 using MiniBank_API.Service;
@@ -12,11 +15,24 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 //Context
-builder.Services.AddSqlServer<MiniBankContext>(builder.Configuration.GetConnectionString("Coneccion"));
+builder.Services.AddDbContext<MiniBankContext>(options =>
+{
+    options.UseSqlServer("name=ConnectionStrings:Coneccion");
+    options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+});
 
 //Service
 builder.Services.AddScoped<ClientService>();
 builder.Services.AddScoped<AccountService>();
+
+//ModelState
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.SuppressModelStateInvalidFilter = true;
+});
+
+//AutoMapper
+builder.Services.AddAutoMapper(typeof(AutoMapping));
 
 var app = builder.Build();
 

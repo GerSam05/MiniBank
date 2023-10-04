@@ -1,22 +1,35 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MiniBank_API.Context;
 using MiniBank_API.Models;
+using MiniBank_API.Models.Dtos;
 
 namespace MiniBank_API.Service
 {
     public class AccountService
     {
         private readonly MiniBankContext _context;
+        private readonly IMapper _mapper;
 
-        public AccountService (MiniBankContext context)
+        public AccountService (MiniBankContext context, IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
-        public async Task<ICollection<Account>> GetAll()
+        public async Task<IEnumerable<AccountDto>> GetAll()
         {
-            return await _context.Accounts.ToListAsync();
+            var listAccount = await _context.Accounts.ToListAsync();
+            List<AccountDto> listAccountDto = _mapper.Map<List<AccountDto>>(listAccount);
+            return listAccountDto;
+        }
+
+        public async Task<AccountDto?> GetAccountDtoById(int id)
+        {
+            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.Id == id);
+            AccountDto accountDto = _mapper.Map<AccountDto>(account);
+            return accountDto;
         }
 
         public async Task<Account?> GetById(int id)
@@ -24,50 +37,66 @@ namespace MiniBank_API.Service
             return await _context.Accounts.FirstOrDefaultAsync(a=>a.Id == id);
         }
 
-        public async Task<Account> Create(Account newAccount)
+        public async Task<Account> Create(AccountCreateDto newAccountDto)
         {
+            Account newAccount = _mapper.Map<Account>(newAccountDto);
             await _context.Accounts.AddAsync(newAccount);
             await _context.SaveChangesAsync();
             return newAccount;
         }
 
-        public async Task Update(Account account)
+        public async Task Update(AccountUpdateDto accountDto)
         {
-            var accauntToUpdate = await _context.Accounts.FirstOrDefaultAsync(i => i.Id == account.Id);
-            if (accauntToUpdate != null)
+            var existingAccount = await GetById(accountDto.Id);
+            if (existingAccount != null)
             {
-                accauntToUpdate.ClientId = account.ClientId;
-                accauntToUpdate.AccountType = account.AccountType;
-                accauntToUpdate.Balance = account.Balance;
+                Account account = _mapper.Map<Account>(accountDto);
+                account.RegDate = existingAccount.RegDate;
+                _context.Accounts.Update(account);
                 await _context.SaveChangesAsync();
             }
-            
         }
 
         public async Task Delete(int id)
         {
-            var accountToDelete = await _context.Accounts.FirstOrDefaultAsync(i => i.Id == id);
+            var accountToDelete = await GetById(id);
             if (accountToDelete != null)
             {
                 _context.Accounts.Remove(accountToDelete);
                 await _context.SaveChangesAsync();
             }
-            
         }
 
-        public async Task<string> ValidationAccount(Account account)
+        public async Task<string> ValidationAccount(AccountCreateDto accountDto)
         {
             string result = "valid";
 
-            var accountType = await _context.AccountTypes.FirstOrDefaultAsync(i=>i.Id == account.AccountType);
+            var accountType = await _context.AccountTypes.FirstOrDefaultAsync(i => i.Id == accountDto.AccountType);
             if (accountType == null)
             {
-                result = $"El tipo de cuente {account.AccountType} no existe!";
+                result = $"El tipo de cuente {accountDto.AccountType} no existe!";
             }
-            var client = await _context.Clients.FirstOrDefaultAsync(i=>i.Id==account.ClientId);
+            var client = await _context.Clients.FirstOrDefaultAsync(i => i.Id == accountDto.ClientId);
             if (client == null)
             {
-                result = $"El cliente {account.ClientId} no existe!";
+                result = $"El cliente con Id={accountDto.ClientId} no existe!";
+            }
+            return result;
+        }
+
+        public async Task<string> ValidationAccount(AccountUpdateDto accountDto)
+        {
+            string result = "valid";
+
+            var accountType = await _context.AccountTypes.FirstOrDefaultAsync(i=>i.Id == accountDto.AccountType);
+            if (accountType == null)
+            {
+                result = $"El tipo de cuente {accountDto.AccountType} no existe!";
+            }
+            var client = await _context.Clients.FirstOrDefaultAsync(i=>i.Id==accountDto.ClientId);
+            if (client == null)
+            {
+                result = $"El cliente con Id={accountDto.ClientId} no existe!";
             }
             return result;
         }
