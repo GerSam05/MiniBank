@@ -17,7 +17,7 @@ namespace MiniBank_API.Service
             _mapper = mapper;
         }
 
-        public async Task<IEnumerable<ClientDto>> GetAll()
+        public async Task<List<ClientDto>> GetAll()
         {
             var listaClient = await _context.Clients.ToListAsync();
             List<ClientDto> listaClientDto = _mapper.Map<List<ClientDto>>(listaClient);
@@ -35,7 +35,7 @@ namespace MiniBank_API.Service
         {
             return await _context.Clients.FirstOrDefaultAsync(c => c.Id == id);
         }
-        
+
         public async Task<Client> Create(ClientCreateDto newClientDto)
         {
             Client newClient = _mapper.Map<Client>(newClientDto);

@@ -34,6 +34,16 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
 //AutoMapper
 builder.Services.AddAutoMapper(typeof(AutoMapping));
 
+//Cors
+var myCors = "CorsRules";
+builder.Services.AddCors(opt =>
+{
+    opt.AddPolicy(name: myCors, builder =>
+    {
+        builder.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

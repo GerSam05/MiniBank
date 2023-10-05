@@ -14,129 +14,255 @@ namespace MiniBank_API.Controllers
     [ApiController]
     public class ClientController : ControllerBase
     {
+        private readonly ILogger<ClientController> _logger;
         private readonly ClientService _service;
         private readonly IMapper _mapper;
+        protected APIResponse _response;
 
-        public ClientController(ClientService service, IMapper mapper)
+        public ClientController(ILogger<ClientController> logger, ClientService service, IMapper mapper)
         {
+            _logger = logger;
             _service = service;
             _mapper = mapper;
+            _response = new();
         }
 
-        [ProducesResponseType(StatusCodes.Status200OK)]
         [HttpGet]
-        public async Task<IEnumerable<ClientDto>> GetClients()
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<ActionResult<APIResponse>> GetClients()
         {
-            return await _service.GetAll();
+            try
+            {
+                _logger.LogInformation("Obteniendo lista de Clientes");
+                List<ClientDto> listClients = await _service.GetAll();
+                _response.Resultado = listClients;
+                _response.StatusCode = HttpStatusCode.OK;
+                return Ok(_response);
+            }
+            catch (Exception ex)
+            {
+                _response.IsExitoso = false;
+                _response.ExceptionMessages = new List<string> { ex.ToString() };
+            }
+            return _response;
         }
 
+        [HttpGet("{id}")]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        [HttpGet("{id}")]
-        public async Task<ActionResult<ClientDto>> GetClient(int id)
+        public async Task<ActionResult<APIResponse>> GetClient(int id)
         {
-            if (id == 0) return BadRequest(new {message = "Campo Id debe ser mayor que cero (0)"});
-
-            var client = await _service.GetClientDtoById(id);
-            if (client == null)
+            try
             {
-                return NotFound(new { message = $"El Client con Id={id} no existe en la base de datos"});
+                if (id == 0)
+                {
+                    _logger.LogError("Error en peticion de Cliente con Id=0");
+                    _response.IsExitoso = false;
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    _response.ErrorMessage = _response.ErrorIdCero();
+                    return BadRequest(_response);
+                }
+
+                var client = await _service.GetClientDtoById(id);
+                if (client == null)
+                {
+                    _logger.LogError("Id de Client no encontrado");
+                    _response.IsExitoso = false;
+                    _response.StatusCode = HttpStatusCode.NotFound;
+                    _response.ErrorNotFound(id);
+                    return NotFound(_response);
+                }
+
+                _response.Resultado = client;
+                _response.StatusCode = HttpStatusCode.OK;
+                return Ok(_response);
             }
-            return Ok(client);
+            catch (Exception ex)
+            {
+                _response.IsExitoso = false;
+                _response.ExceptionMessages = new List<string> { ex.Message.ToString() };
+            }
+            return _response;
         }
 
+        [HttpPost]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        [HttpPost]
-        public async Task<IActionResult> PostClient(ClientCreateDto newClientDto)
+        public async Task<ActionResult<APIResponse>> PostClient(ClientCreateDto newClientDto)
         {
-            if (!ModelState.IsValid)
+            try
             {
-                //_logger.LogError("ModelState Inválido");
-                return BadRequest(ModelState);
-            }
-            var newClient = await _service.Create(newClientDto);
+                if (!ModelState.IsValid)
+                {
+                    _logger.LogError("ModelState Inválido");
+                    return BadRequest(ModelState);
+                }
+                var newClient = await _service.Create(newClientDto);
+                _response.Resultado = newClient;
+                _response.StatusCode = HttpStatusCode.Created;
 
-            return CreatedAtAction(nameof(GetClient), new { id = newClient.Id }, newClient );
+                return CreatedAtAction(nameof(GetClient), new { id = newClient.Id }, newClient);
+            }
+            catch (Exception ex)
+            {
+                _response.IsExitoso = false;
+                _response.ExceptionMessages = new List<string> { ex.Message.ToString() };
+            }
+            return _response;
+
         }
 
+        [HttpPut("{id}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [HttpPut("{id}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> UpdateClient(int id, [FromBody] ClientUpdateDto clientUpdateDto)
         {
-            if (!ModelState.IsValid)
+            try
             {
-                //_logger.LogError("ModelState Inválido");
-                return BadRequest(ModelState);
-            }
-            if (id != clientUpdateDto.Id)
-            {
-                return BadRequest(new { message = $"El Id={id} de la URL no coincide con el Id={clientUpdateDto.Id} del cuerpo de la solicitud"});
-            }
+                if (!ModelState.IsValid)
+                {
+                    _logger.LogError("ModelState Inválido");
+                    return BadRequest(ModelState);
+                }
 
-            var existingClient = await _service.GetById(id);
-            if (existingClient != null)
-            {
+                if (id != clientUpdateDto.Id)
+                {
+                    _logger.LogError("Error en peticion de Id");
+                    _response.IsExitoso = false;
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    _response.ErrorDifId(id, clientUpdateDto.Id);
+                    return BadRequest(_response);
+                }
+
+                var existingClient = await _service.GetById(id);
+                if (existingClient == null)
+                {
+                    _logger.LogError("Id de Client No encontrado");
+                    _response.IsExitoso = false;
+                    _response.StatusCode = HttpStatusCode.NotFound;
+                    _response.ErrorNotFound(id);
+                    return NotFound(_response);
+                }
                 await _service.Update(clientUpdateDto);
-                return NoContent();
+                _response.StatusCode = HttpStatusCode.NoContent;
+                _response.Editado();
+                return Ok(_response);
             }
-            else return NotFound(new { message = $"El Client con Id={id} no existe en la base de datos" });
-
+            catch (Exception ex)
+            {
+                _response.IsExitoso = false;
+                _response.ExceptionMessages = new List<string> { ex.Message.ToString() };
+            }
+            return BadRequest(_response);
         }
 
+        [HttpDelete("{id}")]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [HttpDelete("{id}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> DeleteClient(int id)
         {
-            if (id == 0) return BadRequest(new { message = "Campo Id debe ser mayor que cero (0)" });
-
-            var clientToDelete = await _service.GetById(id);
-            if (clientToDelete != null)
+            try
             {
+                if (id == 0)
+                {
+                    _logger.LogError("Error en peticion de Client con Id=0");
+                    _response.IsExitoso = false;
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    _response.ErrorIdCero();
+                    return BadRequest(_response);
+                }
+
+                var clientToDelete = await _service.GetById(id);
+                if (clientToDelete == null)
+                {
+                    _logger.LogError("Id de Client No encontrado");
+                    _response.IsExitoso = false;
+                    _response.StatusCode = HttpStatusCode.NotFound;
+                    _response.ErrorNotFound(id);
+                    return NotFound(_response);
+                }
+
                 await _service.Delete(id);
-
-                return NoContent();
+                _response.StatusCode = HttpStatusCode.NoContent;
+                _response.Eliminado();
+                return Ok(_response);
             }
-            else return NotFound(new { message = $"El Client con Id={id} no existe en la base de datos" });
-
+            catch (Exception ex)
+            {
+                _response.IsExitoso = false;
+                _response.ExceptionMessages = new List<string> { ex.Message.ToString() };
+            }
+            return BadRequest(_response);
         }
-        
+
+        [HttpPatch("{id}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [HttpPatch("{id}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> PartialPutClient(int id, JsonPatchDocument<ClientUpdateDto> jsonPatch)
         {
-            if (id == 0) return BadRequest(new { message = "Campo Id debe ser mayor que cero (0)" });
-
-            var client = await _service.GetById(id);
-            if (client == null)
+            try
             {
-                return NotFound(new { message = $"El Client con Id={id} no existe en la base de datos" });
-            }
+                if (id == 0)
+                {
+                    _logger.LogError("Error en peticion de Client con Id=0");
+                    _response.IsExitoso = false;
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    _response.ErrorIdCero();
+                    return BadRequest(_response);
+                }
 
-            if (jsonPatch == null || jsonPatch.Operations.Count == 0 ||
-                jsonPatch.Operations.Any(o => o.op != "replace"))
+                var client = await _service.GetById(id);
+                if (client == null)
+                {
+                    _logger.LogError("Id de Cliente No encontrado");
+                    _response.IsExitoso = false;
+                    _response.StatusCode = HttpStatusCode.NotFound;
+                    _response.ErrorNotFound(id);
+                    return NotFound(_response);
+                }
+
+                if (jsonPatch == null || jsonPatch.Operations.Count == 0 ||
+                    jsonPatch.Operations.Any(o => o.op != "replace"))
+                {
+                    _logger.LogError("Error al Actualizar, Json Nulo");
+                    _response.IsExitoso = false;
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    _response.ErrorJson();
+                    return BadRequest(_response);
+                }
+
+                ClientUpdateDto clientToUpdateDto = _mapper.Map<ClientUpdateDto>(client);
+
+                jsonPatch.ApplyTo(clientToUpdateDto);
+
+                if (TryValidateModel(clientToUpdateDto))
+                {
+                    await _service.Update(clientToUpdateDto);
+                    _response.StatusCode = HttpStatusCode.NoContent;
+                    _response.Editado();
+                    return Ok(_response);
+                }
+                else
+                {
+                    _logger.LogError("ModelState Inválido");
+                    return BadRequest(ModelState);
+                }
+            }
+            catch (Exception ex)
             {
-                return BadRequest(new { message = $"Json nulo o inválido" });
+                _response.IsExitoso = false;
+                _response.ExceptionMessages = new List<string> { ex.Message.ToString() };
             }
-
-            ClientUpdateDto clientToUpdateDto = _mapper.Map<ClientUpdateDto>(client);
-
-            jsonPatch.ApplyTo(clientToUpdateDto);
-
-            if (TryValidateModel(clientToUpdateDto))
-            {
-                await _service.Update(clientToUpdateDto);
-                return NoContent();
-            }
-            else return BadRequest(ModelState);
+            return BadRequest(_response);
         }
     }
 }

@@ -12,29 +12,43 @@ namespace MiniBank_API.Service
         private readonly MiniBankContext _context;
         private readonly IMapper _mapper;
 
-        public AccountService (MiniBankContext context, IMapper mapper)
+        public AccountService(MiniBankContext context, IMapper mapper)
         {
             _context = context;
             _mapper = mapper;
         }
 
-        public async Task<IEnumerable<AccountDto>> GetAll()
+        public async Task<List<AccountDto>> GetAll()
         {
-            var listAccount = await _context.Accounts.ToListAsync();
-            List<AccountDto> listAccountDto = _mapper.Map<List<AccountDto>>(listAccount);
-            return listAccountDto;
+            List<AccountDto> listAccount = await _context.Accounts.Select(a => new AccountDto
+            {
+                Id = a.Id,
+                AccountName = a.AccountTypeNavigation.Name,
+                ClientName = a.Client.Name,
+                Balance = a.Balance,
+                RegDate = a.RegDate
+            }).ToListAsync();
+
+            return listAccount;
         }
 
         public async Task<AccountDto?> GetAccountDtoById(int id)
         {
-            var account = await _context.Accounts.FirstOrDefaultAsync(a => a.Id == id);
-            AccountDto accountDto = _mapper.Map<AccountDto>(account);
+            var accountDto = await _context.Accounts.Where(a => a.Id == id).Select(a => new AccountDto
+            {
+                Id = a.Id,
+                AccountName = a.AccountTypeNavigation.Name,
+                ClientName = a.Client.Name,
+                Balance = a.Balance,
+                RegDate = a.RegDate
+            }).SingleOrDefaultAsync();
+
             return accountDto;
         }
 
         public async Task<Account?> GetById(int id)
         {
-            return await _context.Accounts.FirstOrDefaultAsync(a=>a.Id == id);
+            return await _context.Accounts.FirstOrDefaultAsync(a => a.Id == id);
         }
 
         public async Task<Account> Create(AccountCreateDto newAccountDto)
@@ -88,12 +102,12 @@ namespace MiniBank_API.Service
         {
             string result = "valid";
 
-            var accountType = await _context.AccountTypes.FirstOrDefaultAsync(i=>i.Id == accountDto.AccountType);
+            var accountType = await _context.AccountTypes.FirstOrDefaultAsync(i => i.Id == accountDto.AccountType);
             if (accountType == null)
             {
-                result = $"El tipo de cuente {accountDto.AccountType} no existe!";
+                result = $"El tipo de cuenta {accountDto.AccountType} no existe!";
             }
-            var client = await _context.Clients.FirstOrDefaultAsync(i=>i.Id==accountDto.ClientId);
+            var client = await _context.Clients.FirstOrDefaultAsync(i => i.Id == accountDto.ClientId);
             if (client == null)
             {
                 result = $"El cliente con Id={accountDto.ClientId} no existe!";
